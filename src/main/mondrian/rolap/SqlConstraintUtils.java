@@ -6,7 +6,7 @@
 //
 // Copyright (C) 2004-2005 TONBELLER AG
 // Copyright (C) 2005-2005 Julian Hyde
-// Copyright (C) 2005-2015 Pentaho and others
+// Copyright (C) 2005-2016 Pentaho and others
 // All Rights Reserved.
 */
 package mondrian.rolap;
@@ -755,6 +755,22 @@ public class SqlConstraintUtils {
         }
         members = listOfMembers.toArray(new Member[listOfMembers.size()]);
         return members;
+    }
+
+    public static List<Member> expandSupportedCalculatedMember(
+        Member member,
+        Evaluator evaluator)
+    {
+        if (member.isCalculated() && isSupportedCalculatedMember(member)) {
+            return expandExpressions(member, null, evaluator);
+        } else if (member instanceof RolapResult.CompoundSlicerRolapMember) {
+            return Collections.singletonList(replaceCompoundSlicerPlaceholder(
+                member,
+                (RolapEvaluator) evaluator));
+        } else {
+            // just the member
+            return Collections.singletonList(member);
+        }
     }
 
     private static Member replaceCompoundSlicerPlaceholder(

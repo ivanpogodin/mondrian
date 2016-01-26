@@ -12,6 +12,7 @@ package mondrian.olap.fun;
 
 import mondrian.olap.*;
 import mondrian.resource.MondrianResource;
+import mondrian.rolap.QueryException;
 import mondrian.test.FoodMartTestCase;
 import mondrian.test.TestContext;
 import mondrian.udf.*;
@@ -12882,6 +12883,25 @@ Intel platforms):
           + "Row #0: 1,671\n"
           + "Row #1: 1,173\n";
         context.assertQueryReturns(query, expectedResult);
+    }
+
+    public void testComplexSlicer_Unsupported() {
+      TestContext context = getTestContext().createSubstitutingCube(
+          "Sales",
+          null,
+          "<CalculatedMember "
+          + "name='H1 1997' "
+          + "formula='([Time].[1997].[Q1] - [Time].[1997].[Q2])' "
+          + "dimension='Time' />");
+      String query =
+          "SELECT "
+          + "{[Measures].[Customer Count]} ON 0, "
+          + "{[Education Level].Members} ON 1 "
+          + "FROM [Sales] "
+          + "WHERE {[Time].[H1 1997],[Time].[1998].[Q1]}";
+      final String errorMessagePattern = QueryException.class.getName()
+          + ": Calculated member [H1 1997] cannot be processed. [H1 1997] is unsupported";
+      context.assertQueryThrows(query, errorMessagePattern);
     }
 
 }

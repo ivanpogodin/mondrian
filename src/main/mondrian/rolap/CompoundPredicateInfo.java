@@ -18,7 +18,9 @@ import mondrian.rolap.agg.ValueColumnPredicate;
 import mondrian.rolap.sql.SqlQuery;
 import mondrian.util.Pair;
 
+import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -359,20 +361,39 @@ public class CompoundPredicateInfo {
     private StarPredicate makeCalculatedMemberPredicate(
         RolapCubeMember member, RolapCube baseCube, Evaluator evaluator)
     {
-      List<Member> memberList = new ArrayList<Member>(1);
-      memberList.add(member);
-      List<Member> expandedList = SqlConstraintUtils
-          .expandSupportedCalculatedMembers(memberList, evaluator);
+      List<Member> expandedMemberList = SqlConstraintUtils
+          .expandSupportedCalculatedMembers(
+              Collections.singletonList((Member)member), evaluator);
       List<StarPredicate> predicates =
-          new ArrayList<StarPredicate>(expandedList.size());
-      for (Member m : expandedList) {
-        assert m instanceof RolapCubeMember;
-        RolapCubeMember memberI = ((RolapCubeMember)m);
-        final RolapCubeLevel levelI = memberI.getLevel();
-        RolapStar.Column columnI = levelI.getBaseStarKeyColumn(baseCube);
-        Object keyI = memberI.getKey();
-        StarPredicate predicateI = new ValueColumnPredicate(columnI, keyI);
-        predicates.add(predicateI);
+          new ArrayList<StarPredicate>(expandedMemberList.size());
+      for (Member iMember : expandedMemberList) {
+        if (iMember == null) {// overinsurance
+          throw new QueryException(MessageFormat.format(
+              "Calculated member [{0}] cannot be processed.",
+              member.getName()));
+        }
+        if (iMember.isCalculated()) {
+          throw new QueryException(MessageFormat.format(
+              "Calculated member [{0}] cannot be processed. [{1}] is unsupported.",
+              member.getName(), iMember.getName()));
+        }
+        if (!(iMember instanceof RolapCubeMember)) {
+          throw new QueryException(MessageFormat.format(
+              "Calculated member [{0}] cannot be processed. [{1}] is problem.",
+              member.getName(), iMember.getName()));
+        }
+//        if (iMember.getName().equals( "Q1" )) {
+//          throw new QueryException( MessageFormat.format(
+//              "Calculated member [{0}] cannot be processed. "
+//              + "[{1}] is forced to be a problem (for debug)",
+//              member.getName(), iMember.getName()));
+//        }
+        RolapCubeMember iCubeMember = ((RolapCubeMember)iMember);
+        RolapCubeLevel iLevel = iCubeMember.getLevel();
+        RolapStar.Column iColumn = iLevel.getBaseStarKeyColumn(baseCube);
+        Object iKey = iCubeMember.getKey();
+        StarPredicate iPredicate = new ValueColumnPredicate(iColumn, iKey);
+        predicates.add(iPredicate);
       }
       OrPredicate addPredicate1 = new OrPredicate(predicates);
       return addPredicate1;
